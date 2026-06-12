@@ -1,5 +1,8 @@
 const { extractThreadHTML } = require('./extractThreadHTML')
 
+// Track scraped message IDs across function calls (survives DOM recreation)
+const scrapedMessageIds = new Set()
+
 async function extractPostsHTML(page, postsSelector) {
   const postsHTML = []
   const SKIP_THREADS = process.env.SKIP_THREADS === 'true'
@@ -9,7 +12,14 @@ async function extractPostsHTML(page, postsSelector) {
   for (let i = 1; i < postHandles.length; i++) {
     const postHandle = postHandles[i]
 
-    if (await postHandle.evaluate(post => post.isScraped)) continue
+    // Get unique ID for this message (survives DOM recreation in virtualized lists)
+    const messageId = await postHandle.evaluate(post => {
+      return post.getAttribute('data-item-key') ||
+             post.getAttribute('data-qa-message-id') ||
+             post.getAttribute('id')
+    })
+
+    if (!messageId || scrapedMessageIds.has(messageId)) continue
 
     try {
       const repliesButton = await postHandle.$('.c-message__reply_count')
@@ -29,7 +39,7 @@ async function extractPostsHTML(page, postsSelector) {
       continue
     }
 
-    await postHandle.evaluate(post => (post.isScraped = true))
+    scrapedMessageIds.add(messageId)
   }
 
   return postsHTML

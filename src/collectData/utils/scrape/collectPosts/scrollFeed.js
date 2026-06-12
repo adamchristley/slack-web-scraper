@@ -19,10 +19,29 @@ async function ScrollFeed(page, channelFeedSelector) {
       console.log('Scrolled to top.', getHoursAndMinutesTimestamp())
     },
     async toBottom(onScrollCallback = async () => {}) {
+      let scrollCount = 0
+      let noNewMessagesCount = 0
+      let previousMessageCount = 0
+
       do {
-        await onScrollCallback()
+        scrollCount++
+        const newMessageCount = await onScrollCallback()
+
+        if (newMessageCount === previousMessageCount || newMessageCount === 0) {
+          noNewMessagesCount++
+        } else {
+          noNewMessagesCount = 0
+        }
+
+        previousMessageCount = newMessageCount
         await this.down()
-      } while (!(await this.isScrolledToBottom()))
+
+        // Stop if no new messages for 3 consecutive scrolls
+        if (noNewMessagesCount >= 3) {
+          break
+        }
+
+      } while (scrollCount < 1000) // Safety limit
     },
     async up() {
       await page.hover(channelFeedSelector)
@@ -31,9 +50,16 @@ async function ScrollFeed(page, channelFeedSelector) {
       HEADLESS_MODE && (await page.waitForTimeout(1000))
     },
     async down() {
-      await page.hover(channelFeedSelector)
-      await page.mouse.wheel({ deltaY: 4000 })
-      await page.waitForTimeout(500)
+      // Use keyboard PageDown which works with virtualized scroll containers
+      await page.keyboard.press('PageDown')
+      await page.waitForTimeout(1000)
+
+      await page.keyboard.press('PageDown')
+      await page.waitForTimeout(1000)
+
+      await page.keyboard.press('PageDown')
+      await page.waitForTimeout(1500)
+
       HEADLESS_MODE && (await page.waitForTimeout(1000))
     },
     async isScrolledToTop() {

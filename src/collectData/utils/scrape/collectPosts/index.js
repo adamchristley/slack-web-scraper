@@ -10,9 +10,13 @@ async function collectPosts(page, info) {
   await scrollFeed.toTop()
 
   const appendHTMLToSlackDataFile = await initSlackDataFile(info)
+  let totalMessagesExtracted = 0
+
   await scrollFeed.toBottom(async () => {
     const postsHTML = await extractPostsHTML(page, postsSelector)
     appendHTMLToSlackDataFile(postsHTML)
+    totalMessagesExtracted += postsHTML.length
+    return totalMessagesExtracted
   })
 }
 
