@@ -2,23 +2,43 @@
 
 > **Note:** This is an actively maintained fork of the [original slack-web-scraper](https://github.com/iulspop/slack-web-scraper) which was archived in September 2024.
 
-## 🎯 What's New in This Fork
+## ⚠️ Original Scraper No Longer Works
 
-This fork fixes critical issues with modern Slack's virtualized scrolling:
+**The original scraper stopped working with modern Slack** due to significant UI changes. When you run the original version:
+- ❌ Scrapes only ~200 messages then stops immediately
+- ❌ Mouse wheel scrolling does nothing (scroll position stays at 0)
+- ❌ Claims it "reached the end" after collecting only a tiny fraction of messages
+- ❌ Completely broken with virtualized scrolling
+
+**This fork makes it functional again.**
+
+## 🎯 What's Fixed in This Fork
+
+I identified and fixed the core issues that broke the scraper:
 
 ✅ **Keyboard-Based Scrolling** - Uses PageDown events instead of broken mouse wheel scrolling  
 ✅ **Persistent Message Tracking** - Tracks messages by unique ID, survives DOM recreation  
 ✅ **Content-Based Stop Detection** - Stops when no new messages found, not DOM boundaries  
 ✅ **Successfully Tested** - Verified with 2,500+ message channels in 2026
 
-### Why These Fixes Matter
+### Why It Stopped Working
 
-Modern Slack uses **virtualized lists** that only render ~200 messages in the DOM at once. The original scraper:
-- ❌ Mouse wheel events don't trigger Slack's scroll container
-- ❌ DOM properties get lost when Slack recreates elements during scrolling
-- ❌ False "end" detection because DOM size stays constant
+Modern Slack (2024-2026) uses **virtualized lists** that only render ~200 messages in the DOM at once. The original scraper fails because:
 
-This fork solves all these issues and works with current Slack (2026).
+1. **Mouse wheel events don't work** - `page.mouse.wheel()` targets the wrong element (Slack's scroll container changed)
+2. **DOM properties get lost** - Slack destroys and recreates DOM nodes during scrolling, losing the `isScraped` property
+3. **False "end" detection** - DOM size stays constant at ~200 elements, so scraper thinks it reached the end immediately
+
+**Result:** The scraper would collect ~200 messages, think it's done, and stop. Channels with thousands of messages would only yield a fraction.
+
+### How I Fixed It
+
+I debugged the scraper and discovered:
+- Scroll position was stuck at 0 (mouse wheel events not working)
+- Message count plateaued at ~200 (DOM tracking failing)
+- Slack was recreating DOM elements during virtual scrolling
+
+The fixes make it work reliably with modern Slack in 2026.
 
 ---
 
