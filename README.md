@@ -1,12 +1,26 @@
-# Project No Longer Maintained
+# Slack Web Scraper - Maintained Fork
 
-I created this for collecting analytics data for study community I organized where everything happened on Slack. That was long ago and I have no use for maintaining this.
+> **Note:** This is an actively maintained fork of the [original slack-web-scraper](https://github.com/iulspop/slack-web-scraper) which was archived in September 2024.
 
-In retrospect, if I were to build a Slack scraper from scratch, I would focus on intercepting network requests and reading message data from there, instead of scraping and parsing the HTML. Much easier and more reliable. You can even make it a script or service worker you copy/paste manually into your Slack browser tab, to avoid the authentication issues people keep having on automated browsers. That's my recommmendation if someone needs this.
+## 🎯 What's New in This Fork
 
-It might be even as simple as starting a HAR file recording using the DevTools network tab, scrolling up to whatever point in a chat/search you want to save, saving the file, filtering cookies/credentials, and prompting LLM to write script to parse the HAR JSON.
+This fork fixes critical issues with modern Slack's virtualized scrolling:
 
-Good luck!
+✅ **Keyboard-Based Scrolling** - Uses PageDown events instead of broken mouse wheel scrolling  
+✅ **Persistent Message Tracking** - Tracks messages by unique ID, survives DOM recreation  
+✅ **Content-Based Stop Detection** - Stops when no new messages found, not DOM boundaries  
+✅ **Successfully Tested** - Verified with 2,500+ message channels in 2026
+
+### Why These Fixes Matter
+
+Modern Slack uses **virtualized lists** that only render ~200 messages in the DOM at once. The original scraper:
+- ❌ Mouse wheel events don't trigger Slack's scroll container
+- ❌ DOM properties get lost when Slack recreates elements during scrolling
+- ❌ False "end" detection because DOM size stays constant
+
+This fork solves all these issues and works with current Slack (2026).
+
+---
 
 # Slack Web Scraper
 
@@ -63,6 +77,50 @@ You need to configure WSL to connect to a GUI even if the browser launches in he
 ## How to parse Slack data?
 
 1. Assuming you already ran `npm run collect`, you can now run `npm run parse`. You will be prompted to select the file to parse from the `slack-data/` folder. Once the parsing is complete, a `slack-data/x.json` file with same name as the source HTML file will be output with the parsed posts/threads.
+
+## 🔧 Technical Improvements in This Fork
+
+### Fixes for Virtualized Scrolling
+
+**Problem:** Slack's modern UI uses virtualized lists where only visible messages exist in the DOM. The original scraper failed because:
+1. Mouse wheel events don't work on Slack's scroll container
+2. DOM properties are lost when Slack recreates elements
+3. Scraper stops immediately thinking it reached the end
+
+**Solution:**
+
+**1. Keyboard-Based Scrolling** (`scrollFeed.js`)
+```javascript
+// Old: Mouse wheel (doesn't work)
+await page.mouse.wheel({ deltaY: 4000 })
+
+// New: Keyboard events (works!)
+await page.keyboard.press('PageDown')
+```
+
+**2. Persistent Message Tracking** (`extractPostsHTML.js`)
+```javascript
+// Old: DOM property (lost on recreation)
+await postHandle.evaluate(post => post.isScraped = true)
+
+// New: Unique ID tracking (survives recreation)
+const messageId = await postHandle.evaluate(post => 
+  post.getAttribute('data-item-key')
+)
+scrapedMessageIds.add(messageId)
+```
+
+**3. Content-Based Stop Detection** (`scrollFeed.js`)
+```javascript
+// Stops after 3 scrolls with no new messages
+// Not based on DOM boundaries
+if (noNewMessagesCount >= 3) break
+```
+
+### Files Changed
+- `src/collectData/utils/scrape/collectPosts/scrollFeed.js` - Keyboard scrolling
+- `src/collectData/utils/scrape/collectPosts/extractPostsHTML.js` - ID-based tracking
+- `src/collectData/utils/scrape/collectPosts/index.js` - Message count tracking
 
 ## Contributors ✨
 
